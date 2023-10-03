@@ -6,7 +6,6 @@ import threading
 import time
 import os
 import csv
-import pandas as pd
 from dotenv import load_dotenv
 from loguru import logger
 

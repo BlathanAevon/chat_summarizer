@@ -14,13 +14,15 @@ load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 bot = telebot.TeleBot(os.getenv("BOT_TOKEN"))
 
+
 def summarize(input_data):
     return openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
             {
                 "role": "system",
-                "content": "Проанализируй сообщения и сделай краткую выжимку из 10-15 пунктов которые могут быть наиболее интересны аудитории чата, верни каждое сообщение гиперссылкой (используя ссылку на каждое сообщение) в формате <a href='ссылка'>сообщение</a>, оформи весь ответ красиво",
+                # "content": "Сделай анализ сообщений и выбери из них 5-15 самых важных, составь из этого список с гиперссылками в формате [текст](ссылка), ссылкой должна быть ссылкан а сообщение и также, ссылкой должно быть какое-то важное слово в каждом пунтке, при выборе опирайся на то, что 'важными' имеются ввиду сообщения связаные с криптовалютой, технологиями, финансами и тд.",
+                "content": "Задача заключается в проведении анализа сообщений и выборе наиболее значимых 5-15 из них, после чего необходимо сформировать список, в котором каждый элемент представляет собой гиперссылку в формате [текст](ссылка) извлекается из сообщения и используется в качестве текста ссылки, а ссылка ведет к исходному сообщению; определение важности сообщений основывается на наличии в них ключевых слов и фраз, связанных с криптовалютой, технологиями, финансами и смежными областями, и именно на основе этой аналитики формируется итоговый список.",
             },
             {
                 "role": "user",
@@ -40,23 +42,27 @@ def send_summary():
     while True:
         with open("messages.csv", mode="r", newline="") as messages_file:
             csv_reader = csv.reader(messages_file)
+            messages_data = ""
             for row in csv_reader:
                 message, link = row[0], row[1]
                 messages_data += f"Сообщение: {message}, Ссылка: {link}\n"
 
-            if len(messages_data) < 250:
-                return
+            if len(messages_data) < 250 or len(messages_data) > 7000:
+                logger.error("Слишком много или мало данных для выжимки!")
+                pass
+            else:
+                summary_message = summarize(messages_data)["choices"][0]["message"][
+                    "content"
+                ]
 
-            summary_message = summarize(messages_data)["choices"][0]["message"][
-                "content"
-            ]
+                bot.send_message(
+                    os.getenv("CHAT_ID"), summary_message, parse_mode="MarkdownV2"
+                )
 
-            bot.send_message(os.getenv("CHAT_ID"), summary_message, parse_mode="HTML")
+                with open("messages.csv", mode="w", newline="") as file:
+                    pass
 
         time.sleep(600)
-
-        with open("messages.csv", mode="w", newline="") as file:
-            pass
 
 
 @bot.message_handler(func=lambda message: True)
